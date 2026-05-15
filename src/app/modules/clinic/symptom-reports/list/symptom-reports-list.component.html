@@ -1,0 +1,196 @@
+<div class="p-4 md:p-6 space-y-4">
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div>
+      <h2 class="text-lg font-bold text-gray-900">Reportes de Sintomas</h2>
+      <p class="text-sm text-gray-500">Sintomas reportados por famílias via WhatsApp</p>
+    </div>
+    <div class="text-sm text-gray-400">
+      <span class="font-semibold text-gray-700">{{ total() }}</span> reportes encontrados
+    </div>
+  </div>
+
+  <!-- Scope banner (Clinic only) -->
+  @if (ctx.isClinic()) {
+    <div class="flex items-center gap-2 px-3 py-2.5 rounded-lg border bg-teal-50 border-teal-200 text-teal-800 text-sm">
+      <mat-icon class="text-base!">location_on</mat-icon>
+      <span>A visualizar dados de: <strong>{{ ctx.scopeLabel() }}</strong></span>
+    </div>
+  }
+
+  <!-- Filters -->
+  <mat-card>
+    <mat-card-content class="p-4 space-y-3">
+
+      <!-- Location cascade (ONG only) -->
+      @if (ctx.isOng()) {
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>Província</mat-label>
+            <mat-icon matPrefix class="text-gray-400">map</mat-icon>
+            <mat-select [(ngModel)]="selectedProvince" (ngModelChange)="onProvinceChange()">
+              <mat-option value="">Todas as províncias</mat-option>
+              @for (p of provinces; track p) {
+                <mat-option [value]="p">{{ p }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>Distrito</mat-label>
+            <mat-select [(ngModel)]="selectedDistrict" (ngModelChange)="onDistrictChange()" [disabled]="!selectedProvince">
+              <mat-option value="">Todos os distritos</mat-option>
+              @for (d of districts(); track d) {
+                <mat-option [value]="d">{{ d }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>Localidade</mat-label>
+            <mat-select [(ngModel)]="selectedLocality" (ngModelChange)="onFilterChange()" [disabled]="!selectedDistrict">
+              <mat-option value="">Todas as localidades</mat-option>
+              @for (l of localities(); track l) {
+                <mat-option [value]="l">{{ l }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
+      }
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <mat-form-field appearance="outline" class="w-full">
+          <mat-label>Pesquisar</mat-label>
+          <mat-icon matPrefix class="text-gray-400">search</mat-icon>
+          <input matInput [(ngModel)]="search" (keyup.enter)="onSearch()" placeholder="Sintoma, distrito ou notas..." />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="w-full">
+          <mat-label>Estado de Revisão</mat-label>
+          <mat-select [(ngModel)]="selectedStatus" (ngModelChange)="onFilterChange()">
+            <mat-option value="">Todos</mat-option>
+            <mat-option value="pending">Por Rever</mat-option>
+            <mat-option value="reviewed">Revistos</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <div class="flex items-center gap-2 lg:col-span-2">
+          <button mat-flat-button color="primary" class="flex-1" (click)="onSearch()">
+            <mat-icon>search</mat-icon> Filtrar
+          </button>
+          <button mat-stroked-button (click)="clearFilters()" matTooltip="Limpar filtros">
+            <mat-icon>clear</mat-icon>
+          </button>
+        </div>
+      </div>
+
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Table -->
+  <mat-card>
+    <mat-card-content class="p-0 overflow-x-auto">
+      @if (loading()) {
+        <div class="p-4">
+          <app-skeleton-table [rowCount]="8" />
+        </div>
+      } @else if (reports().length === 0) {
+        <div class="flex flex-col items-center justify-center py-16 text-gray-400">
+          <mat-icon class="text-5xl! mb-3">medical_information</mat-icon>
+          <p class="text-sm">Nenhum reporte encontrado com os filtros aplicados.</p>
+          <button mat-stroked-button class="mt-3" (click)="clearFilters()">Limpar filtros</button>
+        </div>
+      } @else {
+        <table mat-table [dataSource]="reports()" class="w-full">
+
+          <ng-container matColumnDef="phone">
+            <th mat-header-cell *matHeaderCellDef class="text-xs text-gray-500 font-medium">Telefone</th>
+            <td mat-cell *matCellDef="let row" class="py-3">
+              <span class="text-sm font-mono text-gray-700">{{ row.phone_number }}</span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="symptoms">
+            <th mat-header-cell *matHeaderCellDef class="text-xs text-gray-500 font-medium">Sintomas</th>
+            <td mat-cell *matCellDef="let row" class="py-3">
+              <div class="flex flex-wrap gap-1">
+                @for (s of row.symptoms; track s) {
+                  <span class="inline-block text-xs font-medium px-2 py-0.5 rounded-full" [ngClass]="getSymptomColor(s)">
+                    {{ symptomLabels[s] }}
+                  </span>
+                }
+              </div>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="location">
+            <th mat-header-cell *matHeaderCellDef class="text-xs text-gray-500 font-medium">Localização</th>
+            <td mat-cell *matCellDef="let row" class="py-3">
+              <div class="text-sm font-medium text-gray-900">{{ row.location.district }}</div>
+              <div class="text-xs text-gray-400">{{ row.location.province }}</div>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="channel">
+            <th mat-header-cell *matHeaderCellDef class="text-xs text-gray-500 font-medium">Canal</th>
+            <td mat-cell *matCellDef="let row" class="py-3">
+              <span class="capitalize text-sm text-gray-700">{{ row.channel }}</span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="date">
+            <th mat-header-cell *matHeaderCellDef class="text-xs text-gray-500 font-medium">Reportado em</th>
+            <td mat-cell *matCellDef="let row" class="py-3 text-xs text-gray-500">
+              {{ row.created_at | date:'dd/MM/yy HH:mm' }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef class="text-xs text-gray-500 font-medium">Estado</th>
+            <td mat-cell *matCellDef="let row" class="py-3">
+              @if (row.reviewed) {
+                <span class="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                  <mat-icon class="text-sm!">check_circle</mat-icon> Revisto
+                </span>
+              } @else {
+                <span class="inline-flex items-center gap-1 text-xs font-semibold text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">
+                  <mat-icon class="text-sm!">hourglass_empty</mat-icon> Por Rever
+                </span>
+              }
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let row" class="py-3">
+              <div class="flex items-center gap-1">
+                <button mat-icon-button [routerLink]="[row.id]" matTooltip="Ver detalhes">
+                  <mat-icon class="text-blue-500">visibility</mat-icon>
+                </button>
+                @if (!row.reviewed) {
+                  <button mat-icon-button (click)="markReviewed(row)" matTooltip="Marcar como revisto">
+                    <mat-icon class="text-green-500">task_alt</mat-icon>
+                  </button>
+                }
+              </div>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns" class="bg-gray-50"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="hover:bg-gray-50 transition-colors border-b border-gray-100"></tr>
+        </table>
+
+        <mat-paginator
+          [length]="total()"
+          [pageSize]="10"
+          [pageSizeOptions]="[5, 10, 25]"
+          (page)="onPageChange($event)"
+          showFirstLastButtons
+          class="border-t border-gray-100"
+        />
+      }
+    </mat-card-content>
+  </mat-card>
+
+</div>

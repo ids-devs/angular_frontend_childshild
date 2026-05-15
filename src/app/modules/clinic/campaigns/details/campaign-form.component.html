@@ -1,0 +1,175 @@
+<div class="p-4 md:p-6 space-y-4 w-full">
+
+  <button mat-button (click)="goBack()" class="text-gray-500 -ml-2">
+    <mat-icon>arrow_back</mat-icon> Voltar às Campanhas
+  </button>
+
+  <div>
+    <h2 class="text-lg font-bold text-gray-900">
+      {{ isEditMode() ? 'Detalhes da Campanha' : 'Nova Campanha SMS' }}
+    </h2>
+    <p class="text-sm text-gray-500">
+      {{ isEditMode() ? 'Visualize e edite os dados desta campanha.' : 'Crie uma nova campanha de alertas para uma zona geográfica.' }}
+    </p>
+  </div>
+
+  @if (loading()) {
+    <div class="space-y-4">
+      <app-skeleton-card height="60px" />
+      <app-skeleton-card height="240px" />
+    </div>
+  } @else {
+
+    <!-- Read-only mode for existing campaigns -->
+    @if (isEditMode() && campaign()) {
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>{{ campaign()!.name }}</mat-card-title>
+          <mat-card-subtitle>{{ campaign()!.province }} — {{ campaign()!.district }}</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content class="pt-4 space-y-4">
+          <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <p class="text-xs text-gray-400 mb-1">Mensagem</p>
+            <p class="text-sm text-gray-800">{{ campaign()!.message }}</p>
+            <p class="text-xs text-gray-400 mt-2 text-right">{{ campaign()!.message.length }} / 160 caracteres</p>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+            <div>
+              <p class="text-xs text-gray-400 mb-0.5">Tipo de Risco</p>
+              <p class="font-semibold text-gray-900">{{ riskTypeLabels[campaign()!.risk_type] }}</p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400 mb-0.5">Total Destinatários</p>
+              <p class="font-semibold text-gray-900">{{ campaign()!.total_recipients | number }}</p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400 mb-0.5">Entregues</p>
+              <p class="font-semibold text-green-700">{{ campaign()!.delivered | number }}</p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400 mb-0.5">Falharam</p>
+              <p class="font-semibold text-red-600">{{ campaign()!.failed | number }}</p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400 mb-0.5">Criada por</p>
+              <p class="font-semibold text-gray-900">{{ campaign()!.created_by }}</p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400 mb-0.5">Criada em</p>
+              <p class="font-semibold text-gray-900">{{ campaign()!.created_at | date:'dd/MM/yyyy HH:mm' }}</p>
+            </div>
+          </div>
+          @if (campaign()!.sent_at) {
+            <div class="flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded-lg p-3 border border-green-100">
+              <mat-icon class="text-base! text-green-600">check_circle</mat-icon>
+              Enviada em {{ campaign()!.sent_at | date:'dd/MM/yyyy HH:mm' }}
+            </div>
+          }
+          @if (campaign()!.scheduled_at) {
+            <div class="flex items-center gap-2 text-xs text-blue-700 bg-blue-50 rounded-lg p-3 border border-blue-100">
+              <mat-icon class="text-base! text-blue-600">schedule_send</mat-icon>
+              Agendada para {{ campaign()!.scheduled_at | date:'dd/MM/yyyy HH:mm' }}
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
+
+    } @else {
+      <!-- Create Form -->
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Dados da Campanha</mat-card-title>
+        </mat-card-header>
+        <mat-card-content class="pt-4">
+          <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
+
+            <mat-form-field appearance="outline" class="w-full">
+              <mat-label>Nome da Campanha *</mat-label>
+              <input matInput formControlName="name" placeholder="Ex: Alerta Malária — Gaza (Mai 2026)" />
+              @if (fieldError('name')) {
+                <mat-error>{{ fieldError('name') }}</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="w-full">
+              <mat-label>Mensagem SMS *</mat-label>
+              <textarea matInput formControlName="message" rows="3"
+                placeholder="ChildShield: Alerta malária em Gaza. Use rede mosquiteira..."></textarea>
+              <mat-hint align="end">{{ messageLength }}/{{ messageMaxLength }}</mat-hint>
+              @if (fieldError('message')) {
+                <mat-error>{{ fieldError('message') }}</mat-error>
+              }
+            </mat-form-field>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>Província *</mat-label>
+                <mat-select formControlName="province">
+                  @for (p of provinces; track p) {
+                    <mat-option [value]="p">{{ p }}</mat-option>
+                  }
+                </mat-select>
+                @if (fieldError('province')) {
+                  <mat-error>{{ fieldError('province') }}</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>Distrito *</mat-label>
+                <input matInput formControlName="district" placeholder="Ex: Chokwé" />
+                @if (fieldError('district')) {
+                  <mat-error>{{ fieldError('district') }}</mat-error>
+                }
+              </mat-form-field>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>Tipo de Risco *</mat-label>
+                <mat-select formControlName="risk_type">
+                  @for (t of riskTypes; track t) {
+                    <mat-option [value]="t">{{ riskTypeLabels[t] }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>Estado</mat-label>
+                <mat-select formControlName="status">
+                  <mat-option value="draft">Rascunho</mat-option>
+                  <mat-option value="scheduled">Agendar</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            @if (form.get('status')?.value === 'scheduled') {
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>Data/Hora de Envio</mat-label>
+                <input matInput type="datetime-local" formControlName="scheduled_at" />
+              </mat-form-field>
+            }
+
+            <mat-form-field appearance="outline" class="w-full">
+              <mat-label>Criado por</mat-label>
+              <input matInput formControlName="created_by" />
+            </mat-form-field>
+
+            <div class="flex items-center justify-end gap-3 pt-2">
+              <button mat-stroked-button type="button" (click)="goBack()">Cancelar</button>
+              <button mat-flat-button color="primary" type="submit" [disabled]="saving()">
+                @if (saving()) {
+                  <mat-progress-spinner mode="indeterminate" diameter="20" class="inline!" />
+                } @else {
+                  <mat-icon>save</mat-icon>
+                }
+                {{ saving() ? 'A guardar...' : 'Guardar Campanha' }}
+              </button>
+            </div>
+
+          </form>
+        </mat-card-content>
+      </mat-card>
+    }
+  }
+
+</div>

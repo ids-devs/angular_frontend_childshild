@@ -1,0 +1,132 @@
+<div class="p-4 md:p-6 space-y-4 w-full">
+
+  <!-- Back -->
+  <button mat-button (click)="goBack()" class="text-gray-500 -ml-2">
+    <mat-icon>arrow_back</mat-icon> Voltar aos Alertas
+  </button>
+
+  @if (loading()) {
+    <div class="space-y-4">
+      <app-skeleton-card height="80px" />
+      <app-skeleton-card height="200px" />
+      <app-skeleton-card height="150px" />
+    </div>
+  } @else if (notFound()) {
+    <div class="flex flex-col items-center justify-center py-20 text-gray-400">
+      <mat-icon class="text-5xl! mb-3">search_off</mat-icon>
+      <p class="text-sm">Alerta não encontrado.</p>
+      <button mat-stroked-button class="mt-3" (click)="goBack()">Voltar</button>
+    </div>
+  } @else {
+    <!-- Title Row -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <h2 class="text-lg font-bold text-gray-900">Alerta #{{ alert()!.id }}</h2>
+          <app-risk-badge [level]="alert()!.risk_level" [type]="alert()!.risk_type" [showType]="true" />
+          <span class="text-xs px-2 py-0.5 rounded-full font-semibold" [ngClass]="getStatusClass(alert()!.status)">
+            {{ statusLabels[alert()!.status] }}
+          </span>
+        </div>
+        <p class="text-sm text-gray-500 mt-1">{{ alert()!.location.district }}, {{ alert()!.location.province }}</p>
+      </div>
+      <div class="text-right text-xs text-gray-400">
+        <p>Emitido: {{ alert()!.created_at | date:'dd/MM/yyyy HH:mm' }}</p>
+        <p>Enviado: {{ alert()!.sent_at | date:'dd/MM/yyyy HH:mm' }}</p>
+      </div>
+    </div>
+
+    <!-- Risk Card -->
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Tipo de Risco</mat-card-title>
+      </mat-card-header>
+      <mat-card-content class="pt-3">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="sm:col-span-2">
+            <p class="text-sm font-semibold text-gray-700 mb-1">{{ riskTypeLabels[alert()!.risk_type] }}</p>
+            <p class="text-sm text-gray-600">{{ riskTypeDescriptions[alert()!.risk_type] }}</p>
+          </div>
+          <div class="flex flex-col items-center justify-center bg-gray-50 rounded-xl p-4">
+            <p class="text-xs text-gray-500 mb-1">Score de Risco</p>
+            <p class="text-4xl font-black text-gray-900">{{ alert()!.score }}</p>
+            <p class="text-xs text-gray-400 mt-1">/ 100</p>
+          </div>
+        </div>
+        <mat-progress-bar
+          mode="determinate"
+          [value]="alert()!.score"
+          class="mt-4 rounded!"
+          [color]="alert()!.risk_level === 'critical' || alert()!.risk_level === 'high' ? 'warn' : 'primary'"
+        />
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Message -->
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Mensagem Enviada</mat-card-title>
+        <mat-card-subtitle>Canal: {{ alert()!.channel | titlecase }}</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content class="pt-3">
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <p class="text-sm text-gray-800 leading-relaxed">{{ alert()!.message }}</p>
+        </div>
+        @if (alert()!.delivery_report) {
+          <div class="flex items-center gap-2 mt-3 text-xs text-green-700 bg-green-50 rounded-lg p-3 border border-green-100">
+            <mat-icon class="text-base! text-green-600">check_circle</mat-icon>
+            {{ alert()!.delivery_report }}
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Location Details -->
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Localização</mat-card-title>
+      </mat-card-header>
+      <mat-card-content class="pt-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Província</p>
+            <p class="font-medium text-gray-900">{{ alert()!.location.province }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Distrito</p>
+            <p class="font-medium text-gray-900">{{ alert()!.location.district }}</p>
+          </div>
+          @if (alert()!.location.locality) {
+            <div>
+              <p class="text-xs text-gray-400 mb-0.5">Localidade</p>
+              <p class="font-medium text-gray-900">{{ alert()!.location.locality }}</p>
+            </div>
+          }
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Score Malária (estático)</p>
+            <p class="font-medium text-gray-900">{{ alert()!.location.malaria_risk_static }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Score Saneamento</p>
+            <p class="font-medium text-gray-900">{{ alert()!.location.sanitation_score }}/100</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Zona</p>
+            <div class="flex gap-1 flex-wrap">
+              @if (alert()!.location.is_coastal) {
+                <span class="text-xs bg-blue-100 text-blue-700 rounded px-1.5 py-0.5">Costeira</span>
+              }
+              @if (alert()!.location.is_urban) {
+                <span class="text-xs bg-gray-100 text-gray-700 rounded px-1.5 py-0.5">Urbana</span>
+              }
+              @if (!alert()!.location.is_urban && !alert()!.location.is_coastal) {
+                <span class="text-xs bg-green-100 text-green-700 rounded px-1.5 py-0.5">Rural</span>
+              }
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
+
+</div>

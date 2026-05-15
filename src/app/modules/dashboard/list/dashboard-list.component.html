@@ -1,0 +1,169 @@
+<div class="p-6 space-y-5 bg-slate-50 min-h-screen">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+    <div>
+      <h2 class="text-2xl font-bold text-slate-900">Centro de Alertas ChildShield</h2>
+      <p class="text-sm text-slate-500">Monitoria epidemiológica e risco climático em tempo real</p>
+    </div>
+    <div class="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">
+      <mat-icon class="text-base!">bolt</mat-icon>
+      Sistema Activo
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="rounded-2xl p-4 text-white shadow-lg bg-gradient-to-r" [ngClass]="cardGradient('families')">
+      <p class="text-xs uppercase tracking-wide opacity-90">Famílias registadas</p>
+      <p class="text-3xl font-bold mt-2">{{ overview()?.total_families ?? 0 }}</p>
+    </div>
+    <div class="rounded-2xl p-4 text-white shadow-lg bg-gradient-to-r" [ngClass]="cardGradient('alerts')">
+      <p class="text-xs uppercase tracking-wide opacity-90">Alertas hoje</p>
+      <p class="text-3xl font-bold mt-2">{{ overview()?.alerts_sent_today ?? 0 }}</p>
+    </div>
+    <div class="rounded-2xl p-4 text-white shadow-lg bg-gradient-to-r" [ngClass]="cardGradient('risk')">
+      <p class="text-xs uppercase tracking-wide opacity-90">Zonas alto/crítico</p>
+      <p class="text-3xl font-bold mt-2">{{ overview()?.active_high_risks ?? 0 }}</p>
+    </div>
+    <div class="rounded-2xl p-4 text-white shadow-lg bg-gradient-to-r" [ngClass]="cardGradient('coverage')">
+      <p class="text-xs uppercase tracking-wide opacity-90">Cobertura de alertas</p>
+      <p class="text-3xl font-bold mt-2">{{ overview()?.alerts_coverage_rate ?? 0 }}%</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+    <mat-card>
+      <mat-card-header><mat-card-title>Distribuição por nível de risco</mat-card-title></mat-card-header>
+      <mat-card-content>
+        @if (loading()) {
+          <p class="text-sm text-slate-500">A carregar...</p>
+        } @else {
+          <apx-chart
+            [series]="riskDonut().series!"
+            [chart]="riskDonut().chart!"
+            [labels]="riskDonut().labels!"
+            [plotOptions]="riskDonut().plotOptions!"
+            [dataLabels]="riskDonut().dataLabels!"
+            [stroke]="riskDonut().stroke!"
+            [legend]="riskDonut().legend!"
+            [tooltip]="riskDonut().tooltip!"
+            [colors]="riskDonut().colors!"
+          />
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-header><mat-card-title>Pipeline de status dos alertas</mat-card-title></mat-card-header>
+      <mat-card-content>
+        @if (loading()) {
+          <p class="text-sm text-slate-500">A carregar...</p>
+        } @else {
+          <apx-chart
+            [series]="alertStatusBar().series!"
+            [chart]="alertStatusBar().chart!"
+            [xaxis]="alertStatusBar().xaxis!"
+            [dataLabels]="alertStatusBar().dataLabels!"
+            [legend]="alertStatusBar().legend!"
+            [tooltip]="alertStatusBar().tooltip!"
+            [colors]="alertStatusBar().colors!"
+          />
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-header><mat-card-title>Top zonas críticas</mat-card-title></mat-card-header>
+      <mat-card-content class="space-y-2">
+        @if (loading()) {
+          <p class="text-sm text-slate-500">A carregar...</p>
+        } @else {
+          @for (zone of criticalZones(); track zone.district + zone.type) {
+            <div class="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2">
+              <div>
+                <p class="text-sm font-semibold text-slate-800">{{ zone.district }}, {{ zone.province }}</p>
+                <p class="text-xs text-slate-500">{{ zone.type }}</p>
+              </div>
+              <div class="text-right">
+                <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold" [ngClass]="statusBadgeClass(zone.level)">{{ zone.level }}</span>
+                <p class="text-xs text-slate-500 mt-1">Score {{ zone.score }}</p>
+              </div>
+            </div>
+          }
+        }
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Mapa geográfico de risco (heat map)</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+        <mat-form-field appearance="outline" class="w-full">
+          <mat-label>Nível de risco</mat-label>
+          <mat-select [value]="selectedRiskLevel()" (valueChange)="selectedRiskLevel.set($event); onFilterChange()">
+            <mat-option value="all">Todos</mat-option>
+            <mat-option value="critical">Crítico</mat-option>
+            <mat-option value="high">Alto</mat-option>
+            <mat-option value="medium">Médio</mat-option>
+            <mat-option value="low">Baixo</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="w-full">
+          <mat-label>Tipo de risco</mat-label>
+          <mat-select [value]="selectedRiskType()" (valueChange)="selectedRiskType.set($event); onFilterChange()">
+            <mat-option value="all">Todos</mat-option>
+            @for (type of riskTypeOptions(); track type) {
+              <mat-option [value]="type">{{ riskTypeLabel(type) }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <div class="flex items-center">
+          <button mat-stroked-button class="w-full" (click)="clearFilters()">
+            <mat-icon>filter_alt_off</mat-icon>
+            Limpar filtros
+          </button>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-3 text-xs mb-3">
+        <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-600"></span>Crítico</span>
+        <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span>Alto</span>
+        <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>Médio</span>
+        <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>Baixo</span>
+      </div>
+      <div class="relative">
+        <div #riskMapContainer class="w-full h-[440px] rounded-xl border border-slate-200 overflow-hidden"></div>
+        @if (filteredZones().length === 0) {
+          <div class="absolute inset-0 bg-white/85 rounded-xl flex items-center justify-center text-sm text-slate-500">
+            Nenhuma zona encontrada para os filtros selecionados.
+          </div>
+        }
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card>
+    <mat-card-header><mat-card-title>Alertas recentes (feed operacional)</mat-card-title></mat-card-header>
+    <mat-card-content>
+      @if (loading()) {
+        <p class="text-sm text-slate-500">A carregar...</p>
+      } @else {
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          @for (alert of filteredAlerts(); track alert.id) {
+            <a class="rounded-xl p-3 border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-colors" [routerLink]="['../details', alert.id]">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ alert.channel ?? 'sms' }}</span>
+                <span class="text-[11px] px-2 py-0.5 rounded-full" [ngClass]="statusBadgeClass(alert.risk_level || 'low')">{{ alert.risk_level || 'low' }}</span>
+              </div>
+              <p class="text-sm font-medium text-slate-800 mt-2 line-clamp-2">{{ alertMessage(alert) }}</p>
+              <p class="text-xs text-slate-500 mt-2">Status: {{ alert.status ?? 'pending' }}</p>
+            </a>
+          }
+        </div>
+        @if (filteredAlerts().length === 0) {
+          <p class="text-sm text-slate-500 mt-3">Nenhum alerta recente para os filtros atuais.</p>
+        }
+      }
+    </mat-card-content>
+  </mat-card>
+</div>

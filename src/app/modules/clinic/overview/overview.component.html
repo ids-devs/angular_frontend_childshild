@@ -1,0 +1,267 @@
+<div class="p-4 md:p-6 space-y-6 w-full">
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+    <div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <h1 class="text-xl font-bold text-gray-900">Painel Clínica / ONG</h1>
+        <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold"
+              [ngClass]="ctx.isOng() ? 'bg-indigo-100 text-indigo-700' : 'bg-teal-100 text-teal-700'">
+          <mat-icon class="text-xs!">{{ ctx.isOng() ? 'public' : 'location_city' }}</mat-icon>
+          {{ ctx.scopeLabel() }}
+        </span>
+      </div>
+      <p class="text-sm text-gray-500 mt-0.5">ChildShield Climate AI — Vista geral em tempo real</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <app-clinic-role-switcher />
+      <div class="flex items-center gap-1.5 text-xs text-gray-400">
+        <mat-icon class="text-base! text-green-500">circle</mat-icon>
+        Actualizado em {{ kpi()?.trend_7days?.slice(-1)?.[0]?.date ?? '—' }}
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    @if (loading()) {
+      @for (n of [1,2,3,4]; track n) {
+        <app-skeleton-card height="110px" />
+      }
+    } @else {
+      <app-stat-card
+        title="Famílias Registadas"
+        [value]="kpi()!.registered_families | number"
+        subtitle="Subscrições activas"
+        icon="family_restroom"
+        color="primary"
+      />
+      <app-stat-card
+        title="Crianças Expostas"
+        [value]="kpi()!.estimated_children | number"
+        subtitle="Estimativa por zona"
+        icon="child_care"
+        color="info"
+      />
+      <app-stat-card
+        title="Alertas Activos"
+        [value]="kpi()!.active_alerts"
+        subtitle="Alertas alto/crítico"
+        icon="notifications_active"
+        color="error"
+      />
+      <app-stat-card
+        title="Cobertura de Alertas"
+        [value]="kpi()!.alert_coverage_percent + '%'"
+        subtitle="Famílias alcançadas"
+        icon="verified"
+        color="success"
+      />
+    }
+  </div>
+
+  <!-- Charts Row -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+    <!-- Trend Chart -->
+    <mat-card class="lg:col-span-2">
+      <mat-card-header class="pb-0">
+        <mat-card-title class="text-base!">Tendência — 7 Dias</mat-card-title>
+        <mat-card-subtitle>Alertas enviados e sintomas reportados</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content class="pt-2">
+        @if (loading()) {
+          <div class="animate-pulse h-60 bg-gray-100 rounded"></div>
+        } @else {
+          <apx-chart
+            [series]="trendChart.series!"
+            [chart]="trendChart.chart!"
+            [xaxis]="trendChart.xaxis!"
+            [yaxis]="trendChart.yaxis!"
+            [stroke]="trendChart.stroke!"
+            [fill]="trendChart.fill!"
+            [dataLabels]="trendChart.dataLabels!"
+            [grid]="trendChart.grid!"
+            [legend]="trendChart.legend!"
+            [tooltip]="trendChart.tooltip!"
+          />
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Expected Consultations -->
+    <mat-card>
+      <mat-card-header class="pb-0">
+        <mat-card-title class="text-base!">Consultas Previstas</mat-card-title>
+        <mat-card-subtitle>Por tipo de risco</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content class="pt-2">
+        @if (loading()) {
+          <div class="animate-pulse h-60 bg-gray-100 rounded"></div>
+        } @else {
+          <apx-chart
+            [series]="riskChart.series!"
+            [chart]="riskChart.chart!"
+            [xaxis]="riskChart.xaxis!"
+            [yaxis]="riskChart.yaxis!"
+            [plotOptions]="riskChart.plotOptions!"
+            [dataLabels]="riskChart.dataLabels!"
+            [grid]="riskChart.grid!"
+            [legend]="riskChart.legend!"
+            [tooltip]="riskChart.tooltip!"
+          />
+        }
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Bottom Row: Risk Zones + Stock + Alerts -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+    <!-- Risk Zones Table -->
+    <mat-card class="lg:col-span-2">
+      <mat-card-header class="pb-0">
+        <mat-card-title class="text-base!">Zonas de Risco Activas</mat-card-title>
+        <mat-card-subtitle>Por distrito — actualização horária</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content class="pt-3 overflow-x-auto">
+        @if (loading()) {
+          <app-skeleton-card height="180px" />
+        } @else {
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-gray-500 text-xs border-b">
+                <th class="pb-2 font-medium">Distrito / Província</th>
+                <th class="pb-2 font-medium">Risco</th>
+                <th class="pb-2 font-medium text-right">Score</th>
+                <th class="pb-2 font-medium text-right">Famílias</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (zone of riskZones(); track zone.district) {
+                <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                  <td class="py-2.5">
+                    <div class="font-medium text-gray-900">{{ zone.district }}</div>
+                    <div class="text-xs text-gray-400">{{ zone.province }}</div>
+                  </td>
+                  <td class="py-2.5">
+                    <app-risk-badge [level]="zone.risk_level" [type]="zone.risk_type" [showType]="true" />
+                  </td>
+                  <td class="py-2.5 text-right">
+                    <span class="font-semibold text-gray-700">{{ zone.score }}</span>
+                  </td>
+                  <td class="py-2.5 text-right text-gray-600">{{ zone.families_count | number }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Right Column: Stock + Unreached -->
+    <div class="space-y-4">
+
+      <!-- Recommended Stock -->
+      <mat-card>
+        <mat-card-header class="pb-0">
+          <mat-card-title class="text-base!">Stock Recomendado</mat-card-title>
+          <mat-card-subtitle>Baseado no risco actual</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content class="pt-3">
+          @if (loading()) {
+            <app-skeleton-card height="100px" />
+          } @else {
+            <div class="space-y-2">
+              <div class="flex items-center justify-between py-1.5 border-b border-gray-50">
+                <div class="flex items-center gap-2">
+                  <mat-icon class="text-base! text-blue-500">medication</mat-icon>
+                  <span class="text-sm text-gray-700">Anti-maláricos</span>
+                </div>
+                <span class="text-sm font-bold text-gray-900">{{ kpi()!.recommended_stock.antimalarials }}</span>
+              </div>
+              <div class="flex items-center justify-between py-1.5 border-b border-gray-50">
+                <div class="flex items-center gap-2">
+                  <mat-icon class="text-base! text-cyan-500">water_drop</mat-icon>
+                  <span class="text-sm text-gray-700">SRO (ORS)</span>
+                </div>
+                <span class="text-sm font-bold text-gray-900">{{ kpi()!.recommended_stock.ors }}</span>
+              </div>
+              <div class="flex items-center justify-between py-1.5">
+                <div class="flex items-center gap-2">
+                  <mat-icon class="text-base! text-purple-500">vaccines</mat-icon>
+                  <span class="text-sm text-gray-700">Soluções IV</span>
+                </div>
+                <span class="text-sm font-bold text-gray-900">{{ kpi()!.recommended_stock.iv_solutions }}</span>
+              </div>
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Unreached Families Alert -->
+      @if (!loading()) {
+        <div class="bg-orange-50 border border-orange-200 rounded-xl p-4">
+          <div class="flex items-start gap-3">
+            <mat-icon class="text-orange-500 flex-shrink-0 mt-0.5">warning</mat-icon>
+            <div>
+              <p class="text-sm font-semibold text-orange-800">Famílias Não Alcançadas</p>
+              <p class="text-2xl font-bold text-orange-700 mt-0.5">{{ kpi()!.unreached_vulnerable | number }}</p>
+              <p class="text-xs text-orange-600 mt-1">Famílias vulneráveis sem cobertura de alerta</p>
+              <a mat-stroked-button color="warn" class="mt-3 text-xs!" routerLink="../families">
+                Ver famílias
+              </a>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Recent Alerts -->
+  <mat-card>
+    <mat-card-header class="pb-0">
+      <mat-card-title class="text-base!">Alertas Recentes</mat-card-title>
+      <mat-card-subtitle>Últimos alertas emitidos pelo sistema</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content class="pt-3">
+      @if (loading()) {
+        <div class="space-y-2">
+          @for (n of [1,2,3]; track n) {
+            <div class="h-14 bg-gray-100 rounded animate-pulse"></div>
+          }
+        </div>
+      } @else {
+        <div class="space-y-2">
+          @for (alert of recentAlerts(); track alert.id) {
+            <div class="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 border border-gray-100 transition-colors cursor-pointer"
+                 [routerLink]="['../alerts', alert.id]">
+              <div class="flex-shrink-0 mt-0.5">
+                <mat-icon class="text-base!" [ngClass]="getAlertStatusColor(alert.status)">
+                  {{ getAlertStatusIcon(alert.status) }}
+                </mat-icon>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <app-risk-badge [level]="alert.risk_level" [type]="alert.risk_type" [showType]="true" />
+                  <span class="text-xs text-gray-400">{{ alert.location.district }}, {{ alert.location.province }}</span>
+                </div>
+                <p class="text-xs text-gray-600 mt-1 line-clamp-1">{{ alert.message }}</p>
+              </div>
+              <div class="flex-shrink-0 text-right">
+                <p class="text-xs text-gray-400">{{ alert.sent_at | date:'dd/MM HH:mm' }}</p>
+                <p class="text-xs font-medium capitalize" [ngClass]="getAlertStatusColor(alert.status)">
+                  {{ alert.status }}
+                </p>
+              </div>
+            </div>
+          }
+        </div>
+        <div class="mt-3 flex justify-end">
+          <a mat-button color="primary" routerLink="../alerts">Ver todos os alertas →</a>
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+
+</div>

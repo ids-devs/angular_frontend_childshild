@@ -1,0 +1,156 @@
+<div class="p-4 md:p-6 space-y-4 w-full">
+
+  <button mat-button (click)="goBack()" class="text-gray-500 -ml-2">
+    <mat-icon>arrow_back</mat-icon> Voltar aos Relatórios
+  </button>
+
+  <div>
+    <h2 class="text-lg font-bold text-gray-900">
+      {{ isNewMode() ? 'Gerar Novo Relatório' : 'Detalhes do Relatório' }}
+    </h2>
+  </div>
+
+  @if (loading()) {
+    <div class="space-y-4">
+      <app-skeleton-card height="60px" />
+      <app-skeleton-card height="250px" />
+    </div>
+  } @else if (isNewMode()) {
+    <!-- Generate Report Form -->
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Parâmetros do Relatório</mat-card-title>
+        <mat-card-subtitle>Configure os filtros e clique em gerar</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content class="pt-4">
+        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <mat-form-field appearance="outline" class="w-full">
+              <mat-label>Província *</mat-label>
+              <mat-select formControlName="province">
+                @for (p of provinces; track p) {
+                  <mat-option [value]="p">{{ p }}</mat-option>
+                }
+              </mat-select>
+              @if (form.get('province')?.touched && form.get('province')?.errors?.['required']) {
+                <mat-error>Campo obrigatório</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="w-full">
+              <mat-label>Distrito (opcional)</mat-label>
+              <input matInput formControlName="district" placeholder="Deixe em branco para todos" />
+            </mat-form-field>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <mat-form-field appearance="outline" class="w-full">
+              <mat-label>Tipo de Relatório *</mat-label>
+              <mat-select formControlName="report_type">
+                <mat-option value="weekly">Semanal</mat-option>
+                <mat-option value="monthly">Mensal</mat-option>
+                <mat-option value="custom">Personalizado</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="w-full">
+              <mat-label>Formato *</mat-label>
+              <mat-select formControlName="format">
+                <mat-option value="pdf">PDF</mat-option>
+                <mat-option value="excel">Excel (.xlsx)</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <mat-form-field appearance="outline" class="w-full">
+              <mat-label>Data de Início *</mat-label>
+              <input matInput type="date" formControlName="period_start" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="w-full">
+              <mat-label>Data de Fim *</mat-label>
+              <input matInput type="date" formControlName="period_end" />
+            </mat-form-field>
+          </div>
+
+          <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-700">
+            <mat-icon class="text-sm! align-middle mr-1">info</mat-icon>
+            O relatório será gerado em segundo plano. Ficará disponível na lista em alguns segundos.
+          </div>
+
+          <div class="flex items-center justify-end gap-3 pt-2">
+            <button mat-stroked-button type="button" (click)="goBack()">Cancelar</button>
+            <button mat-flat-button color="primary" type="submit" [disabled]="saving()">
+              @if (saving()) {
+                <mat-progress-spinner mode="indeterminate" diameter="20" />
+              } @else {
+                <mat-icon>add_chart</mat-icon>
+              }
+              {{ saving() ? 'A gerar...' : 'Gerar Relatório' }}
+            </button>
+          </div>
+
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+  } @else if (report()) {
+    <!-- Report Details -->
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>{{ report()!.name }}</mat-card-title>
+        <mat-card-subtitle>
+          {{ reportTypeLabels[report()!.report_type] }} · {{ report()!.format | uppercase }}
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content class="pt-4 space-y-4">
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-semibold" [ngClass]="getStatusClass(report()!.status)">
+            {{ statusLabels[report()!.status] }}
+          </span>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Período</p>
+            <p class="font-semibold text-gray-900">{{ report()!.period_start | date:'dd/MM/yyyy' }} — {{ report()!.period_end | date:'dd/MM/yyyy' }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Zona</p>
+            <p class="font-semibold text-gray-900">{{ report()!.province }} {{ report()!.district ? '— ' + report()!.district : '' }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Gerado em</p>
+            <p class="font-semibold text-gray-900">{{ report()!.created_at | date:'dd/MM/yyyy HH:mm' }}</p>
+          </div>
+          @if (report()!.status === 'ready') {
+            <div>
+              <p class="text-xs text-gray-400 mb-0.5">Alertas</p>
+              <p class="font-bold text-gray-900 text-lg">{{ report()!.alerts_count }}</p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400 mb-0.5">Famílias Cobertas</p>
+              <p class="font-bold text-gray-900 text-lg">{{ report()!.families_covered | number }}</p>
+            </div>
+          }
+        </div>
+
+        @if (report()!.status === 'ready') {
+          <div class="flex gap-3 pt-2">
+            <button mat-flat-button color="primary" (click)="downloadReport()">
+              <mat-icon>download</mat-icon> Download {{ report()!.format | uppercase }}
+            </button>
+          </div>
+        } @else if (report()!.status === 'generating') {
+          <div class="flex items-center gap-3 text-blue-700 bg-blue-50 rounded-lg p-3 border border-blue-100">
+            <mat-progress-spinner mode="indeterminate" diameter="20" />
+            <span class="text-sm">Relatório em geração. Aguarde...</span>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+  }
+
+</div>

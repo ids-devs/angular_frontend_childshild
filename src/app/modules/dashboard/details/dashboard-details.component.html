@@ -1,0 +1,21 @@
+<div class="p-6">
+  <a mat-button routerLink="../">Voltar</a>
+
+  @if (loading()) {
+    <p class="text-sm text-gray-500">A carregar detalhes...</p>
+  } @else if (!alert()) {
+    <p class="text-sm text-red-500">Alerta não encontrado.</p>
+  } @else {
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Detalhe do alerta #{{ alert().id }}</mat-card-title>
+      </mat-card-header>
+      <mat-card-content class="space-y-2 pt-4">
+        <p><strong>Risco:</strong> {{ alert().risk_level }}</p>
+        <p><strong>Canal:</strong> {{ alert().channel }}</p>
+        <p><strong>Status:</strong> {{ alert().status }}</p>
+        <p><strong>Mensagem:</strong> {{ alert().message_sms || alert().message_whatsapp || 'Sem mensagem' }}</p>
+      </mat-card-content>
+    </mat-card>
+  }
+</div>

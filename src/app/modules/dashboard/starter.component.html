@@ -1,0 +1,74 @@
+<div class="p-6 space-y-4">
+  <div>
+    <h2 class="text-xl font-bold text-gray-900">Dashboard ChildShield</h2>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <mat-card>
+      <mat-card-content>
+        <p class="text-xs text-gray-400">Famílias</p>
+        <p class="text-2xl font-semibold">{{ overview()?.total_families ?? 0 }}</p>
+      </mat-card-content>
+    </mat-card>
+    <mat-card>
+      <mat-card-content>
+        <p class="text-xs text-gray-400">Alertas Hoje</p>
+        <p class="text-2xl font-semibold">{{ overview()?.alerts_sent_today ?? 0 }}</p>
+      </mat-card-content>
+    </mat-card>
+    <mat-card>
+      <mat-card-content>
+        <p class="text-xs text-gray-400">Risco Alto/Crítico</p>
+        <p class="text-2xl font-semibold">{{ overview()?.active_high_risks ?? 0 }}</p>
+      </mat-card-content>
+    </mat-card>
+    <mat-card>
+      <mat-card-content>
+        <p class="text-xs text-gray-400">Cobertura</p>
+        <p class="text-2xl font-semibold">{{ overview()?.alerts_coverage_rate ?? 0 }}%</p>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Zonas de risco</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        @if (loading()) {
+          <p class="text-sm text-gray-500">A carregar...</p>
+        } @else {
+          <div class="space-y-2">
+            @for (zone of riskMap().slice(0, 5); track zone.location_id) {
+              <div class="flex justify-between text-sm border-b border-gray-100 pb-2">
+                <span>{{ zone.district }}, {{ zone.province }}</span>
+                <span class="text-gray-500">{{ zone.location_id }}</span>
+              </div>
+            }
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Alertas recentes</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        @if (loading()) {
+          <p class="text-sm text-gray-500">A carregar...</p>
+        } @else {
+          <div class="space-y-2">
+            @for (alert of alerts(); track alert.id) {
+              <a class="block p-2 rounded hover:bg-gray-50 border border-gray-100" [routerLink]="['/clinic/alerts', alert.id]">
+                <p class="text-sm font-medium text-gray-800 line-clamp-1">{{ alert.message_sms || alert.message_whatsapp || 'Sem mensagem' }}</p>
+                <p class="text-xs text-gray-400 mt-1">{{ alert.risk_level }} - {{ alert.status }}</p>
+              </a>
+            }
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

@@ -1,0 +1,170 @@
+<div class="p-4 md:p-6 space-y-4 w-full">
+
+  <button mat-button (click)="goBack()" class="text-gray-500 -ml-2">
+    <mat-icon>arrow_back</mat-icon> Voltar às Famílias
+  </button>
+
+  @if (loading()) {
+    <div class="space-y-4">
+      <app-skeleton-card height="80px" />
+      <app-skeleton-card height="200px" />
+      <app-skeleton-card height="150px" />
+    </div>
+  } @else if (notFound()) {
+    <div class="flex flex-col items-center justify-center py-20 text-gray-400">
+      <mat-icon class="text-5xl! mb-3">search_off</mat-icon>
+      <p class="text-sm">Família não encontrada.</p>
+      <button mat-stroked-button class="mt-3" (click)="goBack()">Voltar</button>
+    </div>
+  } @else {
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div>
+        <h2 class="text-lg font-bold text-gray-900">Família #{{ family()!.id }}</h2>
+        <p class="text-sm text-gray-500 font-mono">{{ family()!.phone_number }}</p>
+      </div>
+      @if (family()!.subscription_active) {
+        <span class="inline-flex items-center gap-1 text-sm text-green-700 bg-green-100 px-3 py-1 rounded-full font-medium w-fit">
+          <mat-icon class="text-sm!">check_circle</mat-icon> Subscrição Activa
+        </span>
+      } @else {
+        <span class="inline-flex items-center gap-1 text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full font-medium w-fit">
+          <mat-icon class="text-sm!">cancel</mat-icon> Subscrição Inactiva
+        </span>
+      }
+    </div>
+
+    <!-- Vulnerability Score -->
+    <mat-card [style.border-left]="'4px solid ' + getVulnerabilityColor(family()!.vulnerability_score)">
+      <mat-card-content class="p-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-500">Score de Vulnerabilidade</p>
+            <p class="text-3xl font-black" [style.color]="getVulnerabilityColor(family()!.vulnerability_score)">
+              {{ family()!.vulnerability_score }}
+              <span class="text-base font-normal text-gray-500">/ 100</span>
+            </p>
+            <p class="text-xs text-gray-500 mt-0.5">{{ getVulnerabilityLabel(family()!.vulnerability_score) }}</p>
+          </div>
+          <mat-icon class="text-5xl! opacity-10" [style.color]="getVulnerabilityColor(family()!.vulnerability_score)">
+            family_restroom
+          </mat-icon>
+        </div>
+        <mat-progress-bar
+          mode="determinate"
+          [value]="family()!.vulnerability_score"
+          class="mt-3 rounded!"
+          [color]="family()!.vulnerability_score >= 60 ? 'warn' : 'primary'"
+        />
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Family Info -->
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Dados do Agregado Familiar</mat-card-title>
+      </mat-card-header>
+      <mat-card-content class="pt-4">
+        <div class="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Número de Crianças</p>
+            <p class="font-semibold text-gray-900 text-lg">{{ family()!.number_of_children }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Faixas Etárias</p>
+            <div class="flex flex-wrap gap-1">
+              @for (g of family()!.children_age_groups; track g) {
+                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                  {{ ageGroupLabels[g] }}
+                </span>
+              }
+            </div>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Grávida em Casa</p>
+            @if (family()!.pregnant_woman) {
+              <div class="flex items-center gap-1">
+                <mat-icon class="text-sm! text-pink-500">pregnant_woman</mat-icon>
+                <span class="text-pink-700 font-medium">
+                  Sim @if (family()!.weeks_pregnant) { — {{ family()!.weeks_pregnant }} semanas }
+                </span>
+              </div>
+            } @else {
+              <span class="text-gray-600">Não</span>
+            }
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Idioma Preferido</p>
+            <p class="font-medium text-gray-900">{{ languageLabels[family()!.language] }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Canal de Comunicação</p>
+            <p class="font-medium text-gray-900">{{ channelLabels[family()!.channel] }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Consentimento</p>
+            <span class="capitalize text-sm" [ngClass]="family()!.consent_status === 'accepted' ? 'text-green-700' : 'text-red-600'">
+              {{ family()!.consent_status === 'accepted' ? 'Aceite' : family()!.consent_status }}
+            </span>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Data de Registo</p>
+            <p class="font-medium text-gray-900">{{ family()!.created_at | date:'dd/MM/yyyy HH:mm' }}</p>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Location Info -->
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Localização</mat-card-title>
+      </mat-card-header>
+      <mat-card-content class="pt-4">
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Província</p>
+            <p class="font-semibold text-gray-900">{{ family()!.location.province }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Distrito</p>
+            <p class="font-semibold text-gray-900">{{ family()!.location.district }}</p>
+          </div>
+          @if (family()!.location.locality) {
+            <div>
+              <p class="text-xs text-gray-400 mb-0.5">Localidade</p>
+              <p class="font-semibold text-gray-900">{{ family()!.location.locality }}</p>
+            </div>
+          }
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Risco Malária (estático)</p>
+            <p class="font-semibold text-gray-900">{{ family()!.location.malaria_risk_static }}/40</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Score Saneamento</p>
+            <p class="font-semibold text-gray-900">{{ family()!.location.sanitation_score }}/100</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Risco de Cheia</p>
+            <p class="font-semibold text-gray-900">{{ family()!.location.flood_risk }}/40</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Tipo de Zona</p>
+            <div class="flex gap-1 flex-wrap">
+              @if (family()!.location.is_coastal) {
+                <span class="text-xs bg-blue-100 text-blue-700 rounded px-1.5 py-0.5">Costeira</span>
+              }
+              @if (family()!.location.is_urban) {
+                <span class="text-xs bg-gray-100 text-gray-700 rounded px-1.5 py-0.5">Urbana</span>
+              }
+              @if (!family()!.location.is_urban && !family()!.location.is_coastal) {
+                <span class="text-xs bg-green-100 text-green-700 rounded px-1.5 py-0.5">Rural</span>
+              }
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
+
+</div>
